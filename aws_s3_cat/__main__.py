@@ -13,32 +13,45 @@ import aiobotocore
 from docopt import docopt
 
 
-async def go(loop):
+async def producer(queue):
     args = docopt(__doc__)
 
-    session = aiobotocore.get_session(loop=loop)
+    session = aiobotocore.get_session()
     async with session.create_client('s3') as client:
         paginator = client.get_paginator('list_objects')
 
-        tasks = []
         for s3url in args["<s3path>"]:
             bucket, folder = re.findall("s3://([^/]+)/(.*)", s3url)[0]
             async for result in paginator.paginate(Bucket=bucket, Prefix=folder):
                 for c in result.get('Contents', []):
-                    tasks.append(process(client, bucket, c["Key"]))
+                    await queue.put((bucket, c["Key"]))
+        await queue.join()
 
-        total = len(tasks)
-        done = 0
-        max_tasks = 200
-        print("Task created : " + str(total), file=sys.stderr)
 
-        while tasks:
-            completed, pending = await asyncio.wait(tasks[0:max_tasks], loop=loop, timeout=5)
-            for t in completed:
-                done += 1
-                print(t.result(), end='')
-            tasks = list(pending) + tasks[max_tasks:]
-            print("Done : " + str(done) + " / " + str(total), file=sys.stderr)
+async def consumer(queue):
+    session = aiobotocore.get_session()
+    async with session.create_client('s3') as client:
+        while True:
+            bucket, key = await queue.get()
+            content = await process(client, bucket, key)
+            print(content, end="")
+            queue.task_done()
+
+
+async def stats(queue):
+    while True:
+        print("Pending " + str(queue.qsize()), file=sys.stderr)
+        await asyncio.sleep(1)
+
+
+async def run():
+    queue = asyncio.Queue()
+    s = asyncio.ensure_future(stats(queue))
+    consumers = [asyncio.ensure_future(consumer(queue)) for _ in range(50)]
+    await producer(queue)
+    for c in consumers:
+        c.cancel()
+    s.cancel()
 
 
 async def process(client, bucket, key):
@@ -50,5 +63,4 @@ async def process(client, bucket, key):
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(go(loop))
+    asyncio.get_event_loop().run_until_complete(run())
