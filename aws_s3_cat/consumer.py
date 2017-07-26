@@ -1,5 +1,5 @@
 import asyncio
-import gzip
+import zlib
 
 import aiobotocore
 
@@ -19,10 +19,22 @@ class Consumer:
                     bucket, key = await self.queue_in.get()
                     response = await client.get_object(Bucket=bucket, Key=key)
                     async with response['Body'] as stream:
-                        raw = await stream.read()
-                        for row in gzip.decompress(raw).decode("utf-8").split("\n"):
-                            if row:
-                                await self.queue_out.put(row)
+                        d = zlib.decompressobj(zlib.MAX_WBITS | 32)
+                        remaining = ""
+                        while True:
+                            chunk = await stream.read(128 * 1024)
+                            if not chunk:
+                                break
+                            content = (remaining + d.decompress(chunk).decode("utf-8")).split("\n")
+                            remaining = content.pop()
+
+                            for row in content:
+                                if row:
+                                    await self.queue_out.put(row)
+
+                        if remaining:
+                            await self.queue_out.put(remaining)
+
                     self.queue_in.task_done()
                     self.processed += 1
 
