@@ -12,15 +12,19 @@ from docopt import docopt
 from .consumer import Consumer
 from .producer import Producer
 
+
 def display_stats(producer, consumer):
     print("Processed {} / {}".format(consumer.processed, producer.emited), file=sys.stderr)
+
 
 async def stats(producer, consumer):
     async def display_stats_async():
         while True:
             display_stats(producer, consumer)
             await asyncio.sleep(1)
+
     return asyncio.ensure_future(display_stats_async())
+
 
 async def run():
     args = docopt(__doc__)
@@ -32,15 +36,19 @@ async def run():
     consumer = Consumer(queue_in, queue_out)
     _stats = await stats(producer, consumer)
 
-    await consumer.fetch(50)
-    await consumer.display()
-    await producer.list()
-    await queue_in.join()
-    await queue_out.join()
-    await consumer.done()
+    for c in (
+            consumer.fetch(50),
+            consumer.display(),
+            producer.list(),
+            queue_in.join(),
+            queue_out.join(),
+            consumer.done()
+    ): await c
+
     _stats.cancel()
 
     display_stats(producer, consumer)
+
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(run())
