@@ -6,3 +6,5 @@ pip install git+https://github.com/celogeek/aws-s3-cat.git
 # usage
 aws-s3-cat s3://bucket/key > result.txt
 
+# usage to skip header (csv containing header in each file)
+aws-s3-cat --skip-header s3://bucket/key > result.txt
