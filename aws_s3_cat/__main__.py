@@ -29,8 +29,8 @@ async def stats(producer, consumer):
 async def run():
     args = docopt(__doc__)
 
-    queue_in = asyncio.Queue()
-    queue_out = asyncio.Queue()
+    queue_in = asyncio.Queue(1000)
+    queue_out = asyncio.Queue(200)
 
     producer = Producer(queue_in, args["<s3path>"])
     consumer = Consumer(queue_in, queue_out)
