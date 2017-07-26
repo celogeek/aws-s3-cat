@@ -1,0 +1,8 @@
+# Install
+
+# use python 3.5 minimum
+pip install git+https://github.com/celogeek/aws-s3-cat.git
+
+# usage
+aws-s3-cat s3://bucket/key > result.txt
+
