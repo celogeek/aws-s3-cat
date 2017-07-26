@@ -18,13 +18,11 @@ class Consumer:
                 while True:
                     bucket, key = await self.queue_in.get()
                     response = await client.get_object(Bucket=bucket, Key=key)
-                    raw = b""
                     async with response['Body'] as stream:
-                        raw += await stream.read()
-                    content = gzip.decompress(raw).decode("utf-8").split("\n")
-                    for row in content:
-                        if row:
-                            await self.queue_out.put(row)
+                        raw = await stream.read()
+                        for row in gzip.decompress(raw).decode("utf-8").split("\n"):
+                            if row:
+                                await self.queue_out.put(row)
                     self.queue_in.task_done()
                     self.processed += 1
 
