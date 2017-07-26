@@ -11,21 +11,31 @@ class Consumer:
         self._consumers = []
         self.processed = 0
 
+    def splitter(self, remaining, chunk, d):
+        if d:
+            content = d.decompress(chunk)
+        else:
+            content = chunk
+        return (remaining + content.decode("utf-8")).split("\n")
+
     async def fetch(self, consumers=8):
         async def start_consumer():
             session = aiobotocore.get_session()
             async with session.create_client('s3') as client:
                 while True:
                     bucket, key = await self.queue_in.get()
+                    d = None
+                    if key.endswith(".gz"):
+                        d = zlib.decompressobj(zlib.MAX_WBITS | 32)
+
                     response = await client.get_object(Bucket=bucket, Key=key)
                     async with response['Body'] as stream:
-                        d = zlib.decompressobj(zlib.MAX_WBITS | 32)
                         remaining = ""
                         while True:
                             chunk = await stream.read(128 * 1024)
                             if not chunk:
                                 break
-                            content = (remaining + d.decompress(chunk).decode("utf-8")).split("\n")
+                            content = self.splitter(remaining, chunk, d)
                             remaining = content.pop()
 
                             for row in content:
