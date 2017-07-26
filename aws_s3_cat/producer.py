@@ -18,5 +18,6 @@ class Producer:
                 bucket, folder = re.findall("s3://([^/]+)/(.*)", s3url)[0]
                 async for result in paginator.paginate(Bucket=bucket, Prefix=folder):
                     for c in result.get('Contents', []):
-                        await self.queue.put((bucket, c["Key"]))
-                        self.emited += 1
+                        if "STANDARD" in c["StorageClass"]:
+                            await self.queue.put((bucket, c["Key"]))
+                            self.emited += 1
