@@ -50,5 +50,9 @@ async def run():
     display_stats(producer, consumer)
 
 
-if __name__ == "__main__":
+def main():
     asyncio.get_event_loop().run_until_complete(run())
+
+
+if __name__ == "__main__":
+    main()
