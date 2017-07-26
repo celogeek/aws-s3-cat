@@ -5,11 +5,12 @@ import aiobotocore
 
 
 class Consumer:
-    def __init__(self, queue_in, queue_out):
+    def __init__(self, queue_in, queue_out, skip_header=False):
         self.queue_in = queue_in
         self.queue_out = queue_out
         self._consumers = []
         self.processed = 0
+        self.skip_headers = skip_header
 
     def splitter(self, remaining, chunk, d):
         if d:
@@ -29,6 +30,7 @@ class Consumer:
                         d = zlib.decompressobj(zlib.MAX_WBITS | 32)
 
                     response = await client.get_object(Bucket=bucket, Key=key)
+                    skip_first = self.skip_headers
                     async with response['Body'] as stream:
                         remaining = ""
                         while True:
@@ -37,6 +39,9 @@ class Consumer:
                                 break
                             content = self.splitter(remaining, chunk, d)
                             remaining = content.pop()
+                            if skip_first:
+                                content.pop(0)
+                                skip_first = False
 
                             for row in content:
                                 if row:

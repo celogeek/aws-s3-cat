@@ -1,7 +1,7 @@
 """streamer for aws s3 directory
 
 Usage:
-    aws-s3-cat <s3path>...
+    aws-s3-cat [--skip-header] <s3path>...
 
 """
 import asyncio
@@ -33,7 +33,7 @@ async def run():
     queue_out = asyncio.Queue(200)
 
     producer = Producer(queue_in, args["<s3path>"])
-    consumer = Consumer(queue_in, queue_out)
+    consumer = Consumer(queue_in, queue_out, skip_header=args["--skip-header"])
     _stats = await stats(producer, consumer)
 
     for c in (
