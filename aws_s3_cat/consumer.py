@@ -9,6 +9,7 @@ class Consumer:
         self.queue_in = queue_in
         self.queue_out = queue_out
         self._consumers = []
+        self.processed = 0
 
     async def fetch(self, consumers=8):
         async def start_consumer():
@@ -25,6 +26,7 @@ class Consumer:
                         if row:
                             await self.queue_out.put(row)
                     self.queue_in.task_done()
+                    self.processed += 1
 
         for _ in range(consumers):
             self._consumers.append(asyncio.ensure_future(start_consumer()))
